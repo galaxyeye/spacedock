@@ -15,6 +15,7 @@ WORKDIR /spacedock
 COPY package.json yarn.lock ./
 COPY apps/*/package.json apps/*/
 COPY libs/*/package.json libs/*/
+COPY docker/runner-entrypoint.sh docker/
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.yarn \
@@ -78,6 +79,8 @@ COPY --from=builder /spacedock/node_modules ./node_modules
 COPY --from=builder /spacedock/apps/api ./apps/api
 # Copy TypeScript config files for migrations
 COPY --from=builder /spacedock/tsconfig.base.json ./tsconfig.base.json
+# Copy docker directory for runner entrypoint
+COPY --from=builder /spacedock/docker ./docker
 
 RUN mkdir -p /etc/docker && echo '{"iptables": false, "ip-forward": false, "ip-masq": false, "userland-proxy": false,"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
 
@@ -203,11 +206,16 @@ ENTRYPOINT ["spacedock-proxy"]
 
 FROM docker:28.2.2-dind-alpine3.22 AS runner
 
+# Install dumb-init to handle signals and reap zombie processes
+RUN apk add --no-cache dumb-init
+
 WORKDIR /usr/local/bin
 
+# COPY --from=builder /spacedock/docker/runner-entrypoint.sh /usr/local/bin/runner-entrypoint.sh
+COPY --from=spacedock /spacedock/docker/runner-entrypoint.sh /usr/local/bin/runner-entrypoint.sh
 COPY --from=spacedock /spacedock/dist/apps/runner spacedock-runner
 
-RUN chmod +x spacedock-runner
+RUN chmod +x spacedock-runner && chmod +x /usr/local/bin/runner-entrypoint.sh
 
 RUN mkdir -p /etc/docker && echo '{"iptables": false, "ip-forward": false, "ip-masq": false, "userland-proxy": false,"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
 
@@ -230,16 +238,16 @@ ENV AWS_ENDPOINT_URL=http://minio:9000 \
     AWS_SECRET_ACCESS_KEY=minioadmin \
     AWS_DEFAULT_BUCKET=spacedock
 
-ENTRYPOINT ["sh", "-c", "dockerd & spacedock-runner"]
+ENTRYPOINT ["dumb-init", "/usr/local/bin/runner-entrypoint.sh"]
 
-FROM node:22-alpine AS docs
+# FROM node:22-alpine AS docs
 
-WORKDIR /spacedock
+# WORKDIR /spacedock
 
-COPY --from=spacedock /spacedock/node_modules node_modules
-COPY --from=spacedock /spacedock/dist/apps/docs dist/apps/docs
-COPY --from=spacedock /spacedock/apps/docs/server dist/apps/docs/server
+# COPY --from=spacedock /spacedock/node_modules node_modules
+# COPY --from=spacedock /spacedock/dist/apps/docs dist/apps/docs
+# COPY --from=spacedock /spacedock/apps/docs/server dist/apps/docs/server
 
-WORKDIR /spacedock/dist/apps/docs
+# WORKDIR /spacedock/dist/apps/docs
 
-ENTRYPOINT ["sh", "-c", "node server/index.mjs"]
+# ENTRYPOINT ["sh", "-c", "node server/index.mjs"]

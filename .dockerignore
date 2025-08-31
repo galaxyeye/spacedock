@@ -28,6 +28,7 @@ dist
 docker
 !docker/Dockerfile
 !docker/dex
+!docker/runner-entrypoint.sh
 
 # Large example and asset directories
 examples

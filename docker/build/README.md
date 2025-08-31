@@ -1,6 +1,6 @@
-# Daytona Docker Image Build Tools
+# Spacedock Docker Image Build Tools
 
-This directory contains tools and scripts for building and publishing Docker images for the Daytona project.
+This directory contains tools and scripts for building and publishing Docker images for the Spacedock project.
 
 ## Directory Location
 
@@ -16,9 +16,9 @@ These build tools are located in the `docker/build/` directory, alongside the Do
 
 ## Supported Images
 
-This tool can build images for the following Daytona services:
+This tool can build images for the following Spacedock services:
 
-- **api** (Daytona) - Main API service
+- **api** (Spacedock) - Main API service
 - **proxy** - Proxy service
 - **runner** - Runner service
 - **docs** - Documentation service
@@ -350,4 +350,4 @@ If you find issues or have improvement suggestions, please submit an Issue or Pu
 
 ## License
 
-This project follows the same license as the main Daytona project.
+This project follows the same license as the main Spacedock project.
