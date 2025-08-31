@@ -211,7 +211,6 @@ RUN apk add --no-cache dumb-init
 
 WORKDIR /usr/local/bin
 
-# COPY --from=builder /spacedock/docker/runner-entrypoint.sh /usr/local/bin/runner-entrypoint.sh
 COPY --from=spacedock /spacedock/docker/runner-entrypoint.sh /usr/local/bin/runner-entrypoint.sh
 COPY --from=spacedock /spacedock/dist/apps/runner spacedock-runner
 

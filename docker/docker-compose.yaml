@@ -27,7 +27,7 @@ services:
     entrypoint:
       - sh
       - -c
-      - "dockerd-entrypoint.sh & node dist/apps/api/main.js"
+      - "dockerd-entrypoint.sh & yarn migration:run && node dist/apps/api/main.js"
 
   runner:
     image: galaxyeye88/spacedock-runner:latest
