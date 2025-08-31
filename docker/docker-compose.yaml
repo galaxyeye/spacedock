@@ -27,8 +27,19 @@ services:
     entrypoint:
       - sh
       - -c
-      - |
-        dockerd-entrypoint.sh & node dist/apps/api/main.js
+      - "dockerd-entrypoint.sh & node dist/apps/api/main.js"
+
+  runner:
+    image: galaxyeye88/spacedock-runner:latest
+    env_file:
+      - ./.env
+    privileged: true
+    network_mode: service:api
+    restart: unless-stopped
+    init: true
+    entrypoint:
+      - dumb-init
+      - /usr/local/bin/runner-entrypoint.sh
 
   proxy:
     image: galaxyeye88/spacedock-proxy:latest
@@ -39,26 +50,6 @@ services:
       - SPACEDOCK_API_URL=http://localhost:3000/api
       - OIDC_DOMAIN=http://localhost:5556/dex
     network_mode: service:api
-
-  runner:
-    image: galaxyeye88/spacedock-runner:latest
-    env_file:
-      - ./.env
-    privileged: true
-    network_mode: service:api
-    restart: unless-stopped
-    init: true
-    healthcheck:
-      test: ["CMD", "docker", "info"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    entrypoint:
-      - dumb-init
-      - sh
-      - -c
-      - exec /usr/local/bin/runner-entrypoint.sh
 
   dex:
     image: dexidp/dex:v2.42.0
