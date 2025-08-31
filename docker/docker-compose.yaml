@@ -1,8 +1,10 @@
-name: spacedock
+name: pa-spacedock
 services:
   api:
     image: galaxyeye88/spacedock-api:latest
     privileged: true
+    env_file:
+      - ./.env
     environment:
       - DAYTONA_API_URL=http://localhost:3000/api # Added for compatibility
       - SPACEDOCK_API_URL=http://localhost:3000/api
@@ -21,19 +23,35 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-
-  proxy:
-    image: galaxyeye88/spacedock-proxy:latest
-    network_mode: service:api
-    environment:
-      - DAYTONA_API_URL=http://localhost:3000/api # Added for compatibility
-      - SPACEDOCK_API_URL=http://localhost:3000/api
-      - OIDC_DOMAIN=http://localhost:5556/dex
+    # Needed for DinD, container will use tini as PID 1 to automatically clean up orphan processes.
+    # https://chatgpt.com/share/68ac5d39-88c4-8008-907e-01bbb6710a8b
+    init: true
+    volumes:
+      - pulsar_docker_data:/var/lib/docker
 
   runner:
     image: galaxyeye88/spacedock-runner:latest
     network_mode: service:api
+    env_file:
+      - ./.env
     privileged: true
+    # Needed for DinD, container will use tini as PID 1 to automatically clean up orphan processes.
+    # https://chatgpt.com/share/68ac5d39-88c4-8008-907e-01bbb6710a8b
+    init: true
+    volumes:
+      - pulsar_docker_data:/var/lib/docker
+
+  proxy:
+    image: galaxyeye88/spacedock-proxy:latest
+    network_mode: service:api
+    env_file:
+      - ./.env
+    environment:
+      - DAYTONA_API_URL=http://localhost:3000/api # Added for compatibility
+      - SPACEDOCK_API_URL=http://localhost:3000/api
+      - OIDC_DOMAIN=http://localhost:5556/dex
+    volumes:
+      - pulsar_docker_data:/var/lib/docker
 
   dex:
     image: dexidp/dex:v2.42.0
@@ -41,6 +59,8 @@ services:
       - ./dex/config.yaml:/etc/dex/config.yaml
     command: ['dex', 'serve', '/etc/dex/config.yaml']
     network_mode: service:api
+    env_file:
+      - ./.env
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5556/dex/healthz"]
       interval: 5s
@@ -51,9 +71,9 @@ services:
   db:
     image: postgres:11.9
     environment:
-      - POSTGRES_PASSWORD=pass
-      - POSTGRES_USER=user
-      - POSTGRES_DB=spacedock
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pass}
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_DB=${POSTGRES_DB:-spacedock}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d spacedock"]
       interval: 5s
@@ -64,8 +84,8 @@ services:
     image: dpage/pgadmin4:9.2.0
     entrypoint: ['sh', '-c', 'chmod 600 /pgpass && exec /entrypoint.sh']
     environment:
-      PGADMIN_DEFAULT_EMAIL: dev@spacedock.io
-      PGADMIN_DEFAULT_PASSWORD: pgadmin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-development@spacedock.io}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-pgadmin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     user: root
@@ -96,6 +116,7 @@ services:
       - REGISTRY_SECURED=false
       - CATALOG_ELEMENTS_LIMIT=1000
     network_mode: service:api
+
   registry:
     image: registry:2.8.2
     restart: always
@@ -130,3 +151,4 @@ services:
 volumes:
   registry: {}
   minio_data: {}
+  pulsar_docker_data: {}
