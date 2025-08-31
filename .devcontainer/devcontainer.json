@@ -64,9 +64,9 @@
     }
   },
   "onCreateCommand": {
-    // "install-deps": "git config --global --add safe.directory ${containerWorkspaceFolder} && yarn",
-    "fix-scripts": "find ${containerWorkspaceFolder} -type f -name \"*.sh\" 2>/dev/null -exec dos2unix {} \\; -exec chmod +x {} \\; || true",
-    "env": "test -f .env.local || touch .env.local"
+    "env": "test -f .env.local || touch .env.local",
+    "setup-git-proxy": "${containerWorkspaceFolder}/.devcontainer/scripts/setup-git-proxy.sh",
+    "setup-os-env": "${containerWorkspaceFolder}/.devcontainer/scripts/setup-os-env.sh"
   },
   "postStartCommand": "yarn && poetry lock && poetry install",
   "postAttachCommand": "",
