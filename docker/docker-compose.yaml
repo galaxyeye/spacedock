@@ -58,10 +58,7 @@ services:
       - dumb-init
       - sh
       - -c
-    command: |
-      cp /etc/docker/daemon.json /etc/docker/daemon.json.bak 2>/dev/null || true &&
-      echo '{"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json &&
-      exec /usr/local/bin/runner-entrypoint.sh
+      - exec /usr/local/bin/runner-entrypoint.sh
 
   dex:
     image: dexidp/dex:v2.42.0
