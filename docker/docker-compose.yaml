@@ -1,8 +1,9 @@
-name: pa-spacedock
+name: spacedock
 services:
   api:
     image: galaxyeye88/spacedock-api:latest
     privileged: true
+    init: true
     env_file:
       - ./.env
     environment:
@@ -12,46 +13,55 @@ services:
       - OIDC_CLIENT_ID=spacedock
       - OIDC_AUDIENCE=spacedock
     ports:
-      - "3000:3000"
+      - "3000:3000" # API
       - "3003:3003"
+      - "5556:5556" # Dex OIDC
       - "4000:4000"
-      - "6000:6000"
-      - "5556:5556"
       - "5100:5100"
+      - "6000:6000" # For registry
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-    # Needed for DinD, container will use tini as PID 1 to automatically clean up orphan processes.
-    # https://chatgpt.com/share/68ac5d39-88c4-8008-907e-01bbb6710a8b
-    init: true
-    volumes:
-      - pulsar_docker_data:/var/lib/docker
-
-  runner:
-    image: galaxyeye88/spacedock-runner:latest
-    network_mode: service:api
-    env_file:
-      - ./.env
-    privileged: true
-    # Needed for DinD, container will use tini as PID 1 to automatically clean up orphan processes.
-    # https://chatgpt.com/share/68ac5d39-88c4-8008-907e-01bbb6710a8b
-    init: true
-    volumes:
-      - pulsar_docker_data:/var/lib/docker
+    entrypoint:
+      - sh
+      - -c
+      - |
+        dockerd-entrypoint.sh & node dist/apps/api/main.js
 
   proxy:
     image: galaxyeye88/spacedock-proxy:latest
-    network_mode: service:api
     env_file:
       - ./.env
     environment:
       - DAYTONA_API_URL=http://localhost:3000/api # Added for compatibility
       - SPACEDOCK_API_URL=http://localhost:3000/api
       - OIDC_DOMAIN=http://localhost:5556/dex
-    volumes:
-      - pulsar_docker_data:/var/lib/docker
+    network_mode: service:api
+
+  runner:
+    image: galaxyeye88/spacedock-runner:latest
+    env_file:
+      - ./.env
+    privileged: true
+    network_mode: service:api
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    entrypoint:
+      - dumb-init
+      - sh
+      - -c
+    command: |
+      cp /etc/docker/daemon.json /etc/docker/daemon.json.bak 2>/dev/null || true &&
+      echo '{"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json &&
+      exec /usr/local/bin/runner-entrypoint.sh
 
   dex:
     image: dexidp/dex:v2.42.0
@@ -62,7 +72,7 @@ services:
     env_file:
       - ./.env
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5556/dex/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5556/dex/healthz"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -127,7 +137,7 @@ services:
       REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers: '[Authorization,Accept,Cache-Control]'
       REGISTRY_HTTP_HEADERS_Access-Control-Expose-Headers: '[Docker-Content-Digest]'
       REGISTRY_STORAGE_DELETE_ENABLED: 'true'
-      REGISTRY_HTTP_ADDR: localhost:6000
+      REGISTRY_HTTP_ADDR: 0.0.0.0:6000
     volumes:
       - registry:/var/lib/registry
     network_mode: service:api
@@ -151,4 +161,3 @@ services:
 volumes:
   registry: {}
   minio_data: {}
-  pulsar_docker_data: {}
