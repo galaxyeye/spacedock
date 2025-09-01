@@ -102,7 +102,7 @@ export class BackupManager {
     )
   }
 
-  @Cron(CronExpression.EVERY_YEAR, { name: 'sync-backup-states' }) // Run every 10 seconds
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'sync-backup-states' }) // Run every 10 seconds
   async syncBackupStates(): Promise<void> {
     //  lock the sync to only run one instance at a time
     const lockKey = 'sync-backup-states'
